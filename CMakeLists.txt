@@ -1,0 +1,12 @@
+project(tcpp
+        DESCRIPTION "C++ implemention of tcp"
+)
+
+set(CMAKE_CXX_STANDARD 11)
+
+include_directories(${CMAKE_SOURCE_DIR}/include)
+file(GLOB SRCS
+    "${CMAKE_SOURCE_DIR}/src/*.cc"
+)
+
+add_executable(tcpp main.cc ${SRCS})
