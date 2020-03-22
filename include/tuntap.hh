@@ -20,22 +20,20 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-enum Mode { TUN = IFF_TUN, TAP = IFF_TAP };
-
 class Iface {
   // creates new virtual interface.
-private:
-  int fd; // file descriptor
-  Mode mode;
-  std::string name;
-
-  int device_alloc();
-
 public:
+  enum Mode { TUN = IFF_TUN, TAP = IFF_TAP };
   Iface(std::string = "", Mode = Mode::TUN);
   ~Iface();
   size_t receive(uint8_t[], size_t);
   size_t send(uint8_t[], size_t) const;
+
+private:
+  int fd; // file descriptor
+  Mode mode;
+  std::string name;
+  int device_alloc();
 };
 
 #endif
