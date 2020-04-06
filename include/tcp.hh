@@ -3,6 +3,30 @@
 
 #include <map>
 
+class Tcp {
+  // all tcp stuffs gonna hanle here
+public:
+  struct quad;
+  struct connection;
+
+private:
+  uint16_t checksum(uint8_t[], size_t);
+  map<quad, connection> connections;
+};
+
+struct quad {
+  // each quad stores ip and port for source and destination
+  // this is used for identifying connections
+  uint32_t saddr, daddr;
+  uint16_t sport, dport;
+
+  bool operator<(const quad &right) {
+    // to use connectionid as hashmap-key
+    return std::make_tuple(this->saddr, this->daddr, this->sport, this->dport) <
+           std::make_tuple(right.saddr, right.daddr, right.sport, right.dport);
+  }
+};
+
 struct connection {
   enum State { CLOSED, LISTEN, SYNRCVD, ESTAB } state;
   // keeps track of send sequence varuables
@@ -41,28 +65,6 @@ struct connection {
     bool up;
     uint32_t irs;
   } recv;
-};
-
-class Tcp {
-  // all tcp stuffs gonna hanle here
-public:
-  struct quad;
-  map<quad, connection> connections;
-
-private:
-};
-
-struct quad {
-  // each quad stores ip and port for source and destination
-  // this is used for identifying connections
-  uint32_t saddr, daddr;
-  uint16_t sport, dport;
-
-  bool operator<(const quad &right) {
-    // to use connectionid as hashmap-key
-    return std::make_tuple(this->saddr, this->daddr, this->sport, this->dport) <
-           std::make_tuple(right.saddr, right.daddr, right.sport, right.dport);
-  }
 };
 
 #endif
