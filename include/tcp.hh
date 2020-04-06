@@ -17,13 +17,13 @@ struct connection {
     /*  3 - sequence numbers allowed for new data transmission */
     /*  4 - future sequence numbers which are not yet allowed  */
     /*                    Send Sequence Space	                 */
-    size_t una;
-    size_t nxt;
-    size_t wnd;
+    uint32_t una;
+    uint32_t nxt;
+    uint16_t wnd;
     bool up;
     size_t wl1;
     size_t wl2;
-    size_t iss;
+    uint32_t iss;
   } send;
 
   // keeps track of receive sequence varuables
@@ -36,10 +36,10 @@ struct connection {
     /* 2 - sequence numbers allowed for new reception         */
     /* 3 - future sequence numbers which are not yet allowed  */
     /*                 Receive Sequence Space                 */
-    size_t nxt;
-    size_t wnd;
+    uint32_t nxt;
+    uint16_t wnd;
     bool up;
-    size_t irs;
+    uint32_t irs;
   } recv;
 };
 
