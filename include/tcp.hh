@@ -2,19 +2,26 @@
 #define TCP_HH
 
 #include <map>
+#include <string>
+#include <tuntap.hh>
+
+#define MTU 1504 // maximum transmission unit
 
 class Tcp {
   // all tcp stuffs gonna hanle here
 public:
   struct quad;
   struct connection;
+  Tcp(std::string = "", Iface::Mode = Iface::Mode::TUN);
+  size_t receive(uint8_t[], size_t);
 
 private:
+  Iface iface;
+  std::map<quad, connection> connections;
   uint16_t checksum(uint8_t[], size_t);
-  map<quad, connection> connections;
 };
 
-struct quad {
+struct Tcp::quad {
   // each quad stores ip and port for source and destination
   // this is used for identifying connections
   uint32_t saddr, daddr;
@@ -27,7 +34,7 @@ struct quad {
   }
 };
 
-struct connection {
+struct Tcp::connection {
   enum State { CLOSED, LISTEN, SYNRCVD, ESTAB } state;
   // keeps track of send sequence varuables
   struct sendseq {
