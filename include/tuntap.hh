@@ -24,7 +24,7 @@ class Iface {
   // creates new virtual interface.
 public:
   enum Mode { TUN = IFF_TUN, TAP = IFF_TAP };
-  Iface();
+  Iface(std::string = "", Mode = Mode::TUN);
   ~Iface();
   void set(std::string = "", Mode = Mode::TUN);
   int device_alloc();

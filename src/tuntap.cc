@@ -1,8 +1,8 @@
 #include <tuntap.hh>
 
-Iface::Iface() {
-  this->name = "";
-  this->mode = this->Mode::TUN;
+Iface::Iface(std::string name, Mode mode) {
+  this->name = name;
+  this->mode = mode;
 }
 
 int Iface::device_alloc() {
