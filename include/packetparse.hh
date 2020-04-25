@@ -3,12 +3,26 @@
 #ifndef PACKETPARSE_HH
 #define PACKETPARSE_HH
 
+#include <cstdint>
+#include <vector>
+
+// the minimum data offset size (size of the tcp header itself)
+#define TCP_MINIMUM_DATA_OFFSET 5
+
 class PacketParse {
   // TODO: define functions for parsing packets
   // parse network packets
 public:
   struct ipv4hdr;
   struct tcphdr;
+  struct pseudohdr;
+
+  static std::vector<uint8_t> packet_to_bytes(const uint8_t *, size_t);
+  static uint16_t tcp_checksum(struct pseudohdr, struct tcphdr);
+  static uint16_t ip_checksum(struct ipv4hdr);
+
+private:
+  static uint16_t checksum(std::vector<uint8_t> bytes);
 };
 
 struct PacketParse::ipv4hdr {
@@ -41,7 +55,6 @@ struct PacketParse::ipv4hdr {
   uint16_t csum;
   uint32_t saddr;
   uint32_t daddr;
-  uint8_t data[];
 } __attribute__((packed));
 
 struct PacketParse::tcphdr {
@@ -69,18 +82,26 @@ struct PacketParse::tcphdr {
   uint16_t dport;
   uint32_t seq;
   uint32_t ack_seq;
-#if __BYTE_ORDER__ == __LITTLE_ENDIAN
+  /* #if __BYTE_ORDER__ == __LITTLE_ENDIAN */
   uint8_t rsvd : 4;
   uint8_t dataoff : 4;
-#else
-  uint8_t dataoff : 4;
-  uint8_t rsvd : 4;
-#endif
-  uint8_t fin : 1, syn : 1, rst : 1, psh : 1, ack : 1, urg : 1;
+  /* #else */
+  /* uint8_t dataoff : 4; */
+  /* uint8_t rsvd : 6; */
+  /* #endif */
+  uint8_t fin : 1, syn : 1, rst : 1, psh : 1, ack : 1, urg : 1, ece : 1,
+      cwr : 1;
   uint16_t win;
   uint16_t csum;
   uint16_t urp;
-  uint8_t data[];
+} __attribute__((packed));
+
+struct PacketParse::pseudohdr {
+  uint32_t saddr;
+  uint32_t daddr;
+  uint8_t reserved;
+  uint8_t proto;
+  uint16_t len;
 } __attribute__((packed));
 
 #endif
