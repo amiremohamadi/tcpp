@@ -1,40 +1,16 @@
 #ifndef TCP_HH
 #define TCP_HH
 
+#include <arpa/inet.h>
+#include <iostream>
 #include <map>
-#include <string>
-#include <tuntap.hh>
+#include <packetparse.hh>
+#include <string.h>
+#include <vector>
 
 #define MTU 1504 // maximum transmission unit
 
-class Tcp {
-  // all tcp stuffs gonna hanle here
-public:
-  struct quad;
-  struct connection;
-  Tcp(std::string = "", Iface::Mode = Iface::Mode::TUN);
-  size_t receive(uint8_t[], size_t);
-
-private:
-  Iface iface;
-  std::map<quad, connection> connections;
-  uint16_t checksum(uint8_t[], size_t);
-};
-
-struct Tcp::quad {
-  // each quad stores ip and port for source and destination
-  // this is used for identifying connections
-  uint32_t saddr, daddr;
-  uint16_t sport, dport;
-
-  bool operator<(const quad &right) {
-    // to use connectionid as hashmap-key
-    return std::make_tuple(this->saddr, this->daddr, this->sport, this->dport) <
-           std::make_tuple(right.saddr, right.daddr, right.sport, right.dport);
-  }
-};
-
-struct Tcp::connection {
+struct connection {
   enum State { CLOSED, LISTEN, SYNRCVD, ESTAB } state;
   // keeps track of send sequence varuables
   struct sendseq {
@@ -72,6 +48,33 @@ struct Tcp::connection {
     bool up;
     uint32_t irs;
   } recv;
+};
+
+struct quad {
+  // each quad stores ip and port for source and destination
+  // this is used for identifying connections
+  uint32_t saddr, daddr;
+  uint16_t sport, dport;
+
+  bool operator<(const quad &right) const {
+    // to use connectionid as hashmap-key
+    return std::make_tuple(this->saddr, this->daddr, this->sport, this->dport) <
+           std::make_tuple(right.saddr, right.daddr, right.sport, right.dport);
+  }
+};
+
+class Tcp {
+  // all tcp stuffs gonna hanle here
+public:
+  static bool is_exists(quad &);
+  static void insert(quad, connection);
+  static std::vector<uint8_t> accept(PacketParse::ipv4hdr *,
+                                     PacketParse::tcphdr *, connection &);
+
+private:
+  static std::map<quad, connection> connections;
+  static uint16_t checksum(uint8_t[], size_t);
+  static bool is_between_wrapped(uint32_t, uint32_t, uint32_t);
 };
 
 #endif
