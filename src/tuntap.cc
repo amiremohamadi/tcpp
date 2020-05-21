@@ -1,5 +1,10 @@
 #include <tuntap.hh>
 
+Iface::Iface(std::string name, Mode mode) {
+  this->name = name;
+  this->mode = mode;
+}
+
 int Iface::device_alloc() {
   // allocate tun/tap device
   // on successful allocation, file descriptor id is returned
@@ -32,14 +37,12 @@ int Iface::device_alloc() {
   return this->fd;
 }
 
-Iface::Iface(std::string name, Mode mode) {
-  // throws exception if device cant be allocated
+Iface::~Iface() { close(fd); }
+
+void Iface::set(std::string name, Mode mode) {
   this->name = name;
   this->mode = mode;
-  this->device_alloc();
 }
-
-Iface::~Iface() { close(fd); }
 
 size_t Iface::receive(uint8_t buf[], size_t len) {
   // receives a packet from interface.
