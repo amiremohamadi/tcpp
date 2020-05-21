@@ -70,6 +70,8 @@ public:
   static void insert(quad, connection);
   static std::vector<uint8_t> accept(PacketParse::ipv4hdr *,
                                      PacketParse::tcphdr *, connection &);
+  static std::vector<uint8_t> on_packet(PacketParse::ipv4hdr *,
+                                        PacketParse::tcphdr *, connection &);
 
 private:
   static std::map<quad, connection> connections;

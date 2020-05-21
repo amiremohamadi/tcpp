@@ -145,3 +145,70 @@ std::vector<uint8_t> Tcp::accept(PacketParse::ipv4hdr *ip_hdr,
 
   return ip_bytes;
 }
+
+std::vector<uint8_t> Tcp::on_packet(PacketParse::ipv4hdr *ip_hdr,
+                                    PacketParse::tcphdr *tcp_hdr,
+                                    connection &conn) {
+
+  // first of all we must check that the sequence number is valid
+  // acceptable ack
+  // SND.UNA < SEG.ACK =< SND>NXT
+  // TODO: if any bug happened we must check the wrapping
+  uint32_t ack = tcp_hdr->ack_seq;
+  if (!is_between_wrapped(ntohl(conn.sendseq.una), ack,
+                          ntohl(conn.sendseq.nxt) + 1)) {
+    // this is error and must be handled
+    return {};
+  }
+
+  // valid segment check, okay if it acks at least oen byte which means one of
+  // the following states happened:
+  // RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
+  // RCV.NXT =< SEG.SEQ+SEQ.LEN-1 < RCV.NXT+RCV.WND
+  uint32_t seqn = tcp_hdr->seq;
+  size_t len = tcp_hdr->data; // not implemented
+
+  if (tcp_hdr->fin)
+    len += 1;
+
+  if (tcp_hdr->syn)
+    len += 1;
+
+  uint32_t wend = ntohl(conn.recvseq.nxt) + (uint32_t)ntohs(conns.recvseq.wnd);
+  if (len == 0) {
+    // zero length segments has seperate rules to being acceptable
+    if (conn.recvseq.wnd == 0) {
+      if (seqn != conn.recvseq.nxt)
+        return {};
+    } else if (!is_between_wrapped(ntohl(conn.recvseq.nxt) - 1, ntohl(seqn),
+                                   wend)) {
+      return {};
+    }
+  } else {
+    if (conn.recvseq.wnd == 0) {
+      return {};
+    } else if (!is_between_wrapped(ntohl(conn.recvseq.nxt) - 1, ntohl(seqn),
+                                   wend) &&
+               !is_between_wrapped(ntohl(conn.recvseq.nxt) - 1,
+                                   ntohl(seqn) + len - 1, wend)) {
+      return {};
+    }
+  }
+
+  switch (conn.state) {
+  case connection::State::SYNRCVD:
+    // expect to get an ACK for our SYN
+    if (!tcp_hdr->ack)
+      return {};
+    // must have ACKed out SYN, since we detected at least one acked byte, and
+    // we have send only one byte which is the SYN
+    conn.state = connection::State::ESTAB;
+    break;
+
+  case connection::State::ESTAB:
+    break;
+
+  default:
+    break;
+  }
+}
