@@ -1,6 +1,6 @@
 #include <tcp.hh>
 
-std::map<quad, connection> Tcp::connections = {};
+std::map<Quad, Connection> Tcp::connections = {};
 
 uint16_t Tcp::checksum(uint8_t bytes[], size_t size) {
   const uint16_t *buf = (uint16_t *)bytes;
@@ -34,25 +34,29 @@ bool Tcp::is_between_wrapped(uint32_t start, uint32_t x, uint32_t end) {
     //     old and vice- versa, the left edge of the sender's window has to
     //     be at most 2**31 away from the right edge of the receiver's
     //     window.
-    return (lhs - rhs) > (1 << 31);
+    return ((lhs - rhs) % (1 << 31)) > (1 << 31);
   };
 
   return wrapping_lt(start, x) && wrapping_lt(x, end);
 }
 
-bool Tcp::is_exists(quad &q) {
+bool Tcp::is_exists(Quad &q) {
   // if a quad exists in connections
   return (connections.count(q) > 0);
 }
 
-void Tcp::insert(quad q, connection conn) {
+Connection &Tcp::get_conn(Quad &q) {
+	return connections[q];
+}
+
+void Tcp::insert(Quad q, Connection conn) {
   // add new connection
   connections[q] = conn;
 }
 
 std::vector<uint8_t> Tcp::accept(PacketParse::ipv4hdr *ip_hdr,
                                  PacketParse::tcphdr *tcp_hdr,
-                                 connection &conn) {
+                                 Connection &conn) {
   // ignore non-syn packets
   if (tcp_hdr->syn != 1)
     return {};
@@ -62,7 +66,7 @@ std::vector<uint8_t> Tcp::accept(PacketParse::ipv4hdr *ip_hdr,
 
   // TCB: transmission control block (rfc 793)
   conn = {
-      .state = connection::State::SYNRCVD,
+      .state = Connection::State::SYNRCVD,
       // Send Sequence Space
       /* SND.UNA - send unacknowledged */
       /* SND.NXT - send next */
@@ -148,16 +152,17 @@ std::vector<uint8_t> Tcp::accept(PacketParse::ipv4hdr *ip_hdr,
 
 std::vector<uint8_t> Tcp::on_packet(PacketParse::ipv4hdr *ip_hdr,
                                     PacketParse::tcphdr *tcp_hdr,
-                                    connection &conn) {
+                                    Connection &conn) {
 
   // first of all we must check that the sequence number is valid
   // acceptable ack
   // SND.UNA < SEG.ACK =< SND>NXT
   // TODO: if any bug happened we must check the wrapping
   uint32_t ack = tcp_hdr->ack_seq;
-  if (!is_between_wrapped(ntohl(conn.sendseq.una), ack,
-                          ntohl(conn.sendseq.nxt) + 1)) {
+	// TODO: check using wrapped_between function
+  if (!(ntohl(conn.send.una) < ntohl(ack)) && !(ntohl(ack) <= ntohl(conn.send.nxt))) {
     // this is error and must be handled
+		std::cerr << "Bad ack number1" << std::endl;
     return {};
   }
 
@@ -166,7 +171,7 @@ std::vector<uint8_t> Tcp::on_packet(PacketParse::ipv4hdr *ip_hdr,
   // RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
   // RCV.NXT =< SEG.SEQ+SEQ.LEN-1 < RCV.NXT+RCV.WND
   uint32_t seqn = tcp_hdr->seq;
-  size_t len = tcp_hdr->data; // not implemented
+  size_t len = ip_hdr->len - (ip_hdr->ihl + tcp_hdr->dataoff) * 4; // not implemented
 
   if (tcp_hdr->fin)
     len += 1;
@@ -174,41 +179,40 @@ std::vector<uint8_t> Tcp::on_packet(PacketParse::ipv4hdr *ip_hdr,
   if (tcp_hdr->syn)
     len += 1;
 
-  uint32_t wend = ntohl(conn.recvseq.nxt) + (uint32_t)ntohs(conns.recvseq.wnd);
+  uint32_t wend = ntohl(conn.recv.nxt) + (uint32_t)ntohs(conn.recv.wnd);
   if (len == 0) {
     // zero length segments has seperate rules to being acceptable
-    if (conn.recvseq.wnd == 0) {
-      if (seqn != conn.recvseq.nxt)
+    if (conn.recv.wnd == 0) {
+      if (seqn != conn.recv.nxt)
         return {};
-    } else if (!is_between_wrapped(ntohl(conn.recvseq.nxt) - 1, ntohl(seqn),
-                                   wend)) {
+    } else if (!(ntohl(conn.recv.nxt) - 1 < ntohl(seqn)) && !(ntohl(seqn) <= wend)) {
       return {};
     }
   } else {
-    if (conn.recvseq.wnd == 0) {
+    if (conn.recv.wnd == 0) {
       return {};
-    } else if (!is_between_wrapped(ntohl(conn.recvseq.nxt) - 1, ntohl(seqn),
-                                   wend) &&
-               !is_between_wrapped(ntohl(conn.recvseq.nxt) - 1,
-                                   ntohl(seqn) + len - 1, wend)) {
+    } else if (!(ntohl(conn.recv.nxt) - 1 < ntohl(seqn)) && !(ntohl(seqn) <= wend) &&
+				!(ntohl(conn.recv.nxt) - 1 < seqn + len - 1) && !(ntohl(seqn) + len - 1 <= wend)) {
       return {};
     }
   }
 
   switch (conn.state) {
-  case connection::State::SYNRCVD:
+  case Connection::State::SYNRCVD:
     // expect to get an ACK for our SYN
     if (!tcp_hdr->ack)
       return {};
     // must have ACKed out SYN, since we detected at least one acked byte, and
     // we have send only one byte which is the SYN
-    conn.state = connection::State::ESTAB;
+    conn.state = Connection::State::ESTAB;
     break;
 
-  case connection::State::ESTAB:
+  case Connection::State::ESTAB:
     break;
 
   default:
     break;
   }
+
+	return {};
 }
