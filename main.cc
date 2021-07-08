@@ -21,6 +21,7 @@ int main() {
 
   while (1) {
     size_t nbytes = iface.receive(bytes, MTU);
+		std::cout << "nbytes: " << nbytes << std::endl;
     std::vector<uint8_t> vbytes(bytes, bytes + nbytes);
 
     uint16_t eth_flags = bytes[0] << 8 | bytes[1]; // big-endian
@@ -44,7 +45,7 @@ int main() {
         (PacketParse::tcphdr *)(bytes + 4 + ip_hdr->ihl * 4);
 
     // each connection is identified by a quad
-    quad q = {.saddr = ip_hdr->saddr,
+    Quad q = {.saddr = ip_hdr->saddr,
               .daddr = ip_hdr->daddr,
               .sport = tcp_hdr->sport,
               .dport = tcp_hdr->dport};
@@ -52,10 +53,11 @@ int main() {
     // if we had a connection with this quad before, return and continue
     // else we trying to make a new connection and put it on connections
     if (Tcp::is_exists(q)) {
-      // balh blah
+			auto conn = Tcp::get_conn(q);
+			Tcp::on_packet(ip_hdr, tcp_hdr, conn);
     } else {
       // connection is new
-      connection conn;
+      Connection conn;
       std::vector<uint8_t> p = Tcp::accept(ip_hdr, tcp_hdr, conn);
       if (p.empty())
         continue;
@@ -71,7 +73,7 @@ int main() {
 
       /* std::cout << std::dec << ntohs(tcp_hdr->sport) << std::endl; */
       /* fmt::print("{}\n", fmt::join(vbytes, " ")); */
-      /* Tcp::insert(q, conn); */
+      Tcp::insert(q, conn);
     }
   }
 

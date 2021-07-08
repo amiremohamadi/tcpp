@@ -10,10 +10,10 @@
 
 #define MTU 1504 // maximum transmission unit
 
-struct connection {
+struct Connection {
   enum State { CLOSED, LISTEN, SYNRCVD, ESTAB } state;
   // keeps track of send sequence varuables
-  struct sendseq {
+  struct Sendseq {
 
     /*         1         2          3          4               */
     /*    ----------|----------|----------|----------          */
@@ -34,7 +34,7 @@ struct connection {
   } send;
 
   // keeps track of receive sequence varuables
-  struct recvseq {
+  struct Recvseq {
     /*     1          2          3                            */
     /*    ----------|----------|----------                    */
     /*           RCV.NXT    RCV.NXT                           */
@@ -50,13 +50,13 @@ struct connection {
   } recv;
 };
 
-struct quad {
+struct Quad {
   // each quad stores ip and port for source and destination
   // this is used for identifying connections
   uint32_t saddr, daddr;
   uint16_t sport, dport;
 
-  bool operator<(const quad &right) const {
+  bool operator<(const Quad &right) const {
     // to use connectionid as hashmap-key
     return std::make_tuple(this->saddr, this->daddr, this->sport, this->dport) <
            std::make_tuple(right.saddr, right.daddr, right.sport, right.dport);
@@ -66,15 +66,16 @@ struct quad {
 class Tcp {
   // all tcp stuffs gonna hanle here
 public:
-  static bool is_exists(quad &);
-  static void insert(quad, connection);
+  static bool is_exists(Quad &);
+	static Connection &get_conn(Quad &);
+  static void insert(Quad, Connection);
   static std::vector<uint8_t> accept(PacketParse::ipv4hdr *,
-                                     PacketParse::tcphdr *, connection &);
+                                     PacketParse::tcphdr *, Connection &);
   static std::vector<uint8_t> on_packet(PacketParse::ipv4hdr *,
-                                        PacketParse::tcphdr *, connection &);
+                                        PacketParse::tcphdr *, Connection &);
 
 private:
-  static std::map<quad, connection> connections;
+  static std::map<Quad, Connection> connections;
   static uint16_t checksum(uint8_t[], size_t);
   static bool is_between_wrapped(uint32_t, uint32_t, uint32_t);
 };
