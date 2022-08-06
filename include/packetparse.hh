@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <vector>
 
+using std::size_t;
+
 // the minimum data offset size (size of the tcp header itself)
 #define TCP_MINIMUM_DATA_OFFSET 5
 

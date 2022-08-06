@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <fmt/format.h>
 #include <iostream>
 #include <map>
 #include <packetparse.hh>
@@ -14,7 +13,7 @@ int main() {
   try {
     iface.device_alloc();
   } catch (const char *c) {
-    fmt::print(c);
+    std::cout << c << "\n";
   }
 
   uint8_t bytes[MTU];
@@ -66,13 +65,13 @@ int main() {
       p.insert(p.begin(), bytes[2]);
       p.insert(p.begin(), bytes[1]);
       p.insert(p.begin(), bytes[0]);
-      fmt::print("[{0:02d}]\n", fmt::join(p, ", "));
-      /* fmt::print("[{0:02x}]\n", fmt::join(vbytes, ", ")); */
+      for (auto i : p)
+          std::cout << i << ", ";
+      std::cout << "\n";
       /* std::cout << std::hex << ntohl(tcp_hdr->seq) << std::endl; */
       iface.send(&p[0], p.size());
 
       /* std::cout << std::dec << ntohs(tcp_hdr->sport) << std::endl; */
-      /* fmt::print("{}\n", fmt::join(vbytes, " ")); */
       Tcp::insert(q, conn);
     }
   }
